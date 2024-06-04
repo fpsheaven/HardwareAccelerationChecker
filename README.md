@@ -8,4 +8,5 @@ Make sure to run it as admin otherwise it won't work
 
 Thank you and good luck.
 
+![image](https://github.com/fpsheaven/HardwareAccelerationChecker/assets/58235292/b2377841-9794-4e77-bc61-35c9d3fa7473)
 
