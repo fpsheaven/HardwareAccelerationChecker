@@ -7,6 +7,7 @@ This app checks for the hardware acceleration flag in Brave, Chrome, Steam, Mozz
 Make sure to run it as admin otherwise it won't work
 
 Thank you and good luck.
+Download here https://github.com/fpsheaven/HardwareAccelerationChecker/releases
 
 ![image](https://github.com/fpsheaven/HardwareAccelerationChecker/assets/58235292/090a1190-46d1-4d6e-9c56-38c560e2434b)
 
