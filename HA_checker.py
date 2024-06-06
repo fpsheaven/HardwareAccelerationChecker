@@ -1,5 +1,6 @@
 import os,winreg,webbrowser,time,json,subprocess
 
+
 def registry_path_exists(hive, path):
     try:
         winreg.OpenKey(getattr(winreg, hive), path)
@@ -38,6 +39,16 @@ def is_steam_installed():
 def is_spotify_installed():
     spotify_path = os.path.join(os.getenv('APPDATA'), 'Spotify', 'Spotify.exe')
     return os.path.exists(spotify_path)
+
+def is_edge_installed():
+    global edge_user_data_dir
+    edge_user_data_dir = os.path.join(os.getenv('LOCALAPPDATA'), 'Microsoft', 'Edge', 'User Data')
+    return os.path.exists(edge_user_data_dir)
+
+def is_gx_installed():
+    global gx_user_data_dir
+    gx_user_data_dir = os.path.join(os.getenv('APPDATA'), 'Opera Software', 'Opera GX Stable')
+    return os.path.exists(gx_user_data_dir)
 
 def is_brave_installed():
     brave_path = os.path.join(os.getenv('LOCALAPPDATA'), 'BraveSoftware', 'Brave-Browser',)
@@ -122,12 +133,37 @@ def main():
         dc_cfg_path = os.path.join(dc_pref_loc, 'settings.json')
         if os.path.exists(dc_cfg_path):
             with open(dc_cfg_path, 'r') as dc_cfg_file:
-                dc_cfg_content = dc_cfg_file.read()
-                dc_acc = 0 if '"enableHardwareAcceleration": false' in dc_cfg_content else 1
+                dc_cfg_content = json.load(dc_cfg_file)
+                dc_acc = 0 if not dc_cfg_content.get('enableHardwareAcceleration', True) else 1
         else:
             print("settings.json file not found.")
+    #EDGE 
+    if not is_edge_installed():
+        print("Edge is not installed.")
+    else:
+        edge_cfg_path = os.path.join(edge_user_data_dir, 'Local State')
+        if os.path.exists(edge_cfg_path):
+            with open(edge_cfg_path, 'r') as edge_cfg_file:
+                edge_cfg_content = json.load(edge_cfg_file)
+                hardware_acceleration_enabled = edge_cfg_content.get('hardware_acceleration_mode', {}).get('enabled', False)
+                edge_acc = 1 if hardware_acceleration_enabled else 0
+        else:
+            print("Local State file not found.")
+    
+    #GX 
+    #global gx_acc
+    if not is_gx_installed():
+        print("OperaGX is not installed.")
+    else:
+        gx_cfg_path = os.path.join(gx_user_data_dir, 'Local State')
+        if os.path.exists(gx_cfg_path):
+            with open(gx_cfg_path, 'r') as gx_cfg_file:
+                gx_cfg_content = json.load(gx_cfg_file)
+                hardware_acceleration_enabled = gx_cfg_content.get('hardware_acceleration_mode', {}).get('enabled', False)
+                gx_acc = 1 if hardware_acceleration_enabled else 0
+        else:
+            print("Local State file not found.")
 
-   
     if is_brave_installed():
         print(f'Brave Hardware Acceleration is currently {"enabled" if brave_ha == "enabled" else "disabled"}')
     if is_chrome_installed():
@@ -140,7 +176,33 @@ def main():
         print(f'Firefox Hardware Acceleration is currently {"enabled" if ff_acc == 1 else "disabled"}.')
     if is_discord_installed():
         print(f'Discord Hardware Acceleration is currently {"enabled" if dc_acc == 1 else "disabled"}.')
+    if is_edge_installed():
+        print(f'MS edge Hardware Acceleration is currently {"enabled" if edge_acc == 1 else "disabled"}.')
+    if is_gx_installed():
+        print(f'Opera gx Hardware Acceleration is currently {"enabled" if gx_acc == 1 else "disabled"}.')
     print("")
+    
+    if is_edge_installed():
+        edge_cfg_path = os.path.join(edge_user_data_dir, 'Local State')
+    if os.path.exists(edge_cfg_path):
+        with open(edge_cfg_path, 'r') as edge_cfg_file:
+            lines = edge_cfg_file.readlines()
+        edge_choice = input(f"Keep Edge's Acceleration {'ON?' if edge_acc == 1 else 'OFF?'} (0=Off, 1=On)? ")
+        if edge_choice in ['0', '1']:
+            with open(edge_cfg_path, 'w') as edge_cfg_file:
+                for line in lines:
+                    if 'hardware_acceleration_mode":{"enabled":' in line:
+                        if edge_choice == '1':
+                            line = line.replace('"hardware_acceleration_mode":{"enabled":false}', '"hardware_acceleration_mode":{"enabled":true}')
+                        else:
+                            line = line.replace('"hardware_acceleration_mode":{"enabled":true}', '"hardware_acceleration_mode":{"enabled":false}')
+                    edge_cfg_file.write(line)
+            print("Hardware acceleration is now", "ON" if edge_choice == '1' else "OFF")
+        else:
+            print('Invalid choice for Edge. Please enter 0 for off or 1 for on.')
+    else:
+        print("Local State file not found.")
+
 
 
     if is_chrome_installed():
@@ -226,26 +288,49 @@ def main():
 
     if is_discord_installed():
         dc_choice = input(f"Keep Discord's Hardware Acceleration {'ON?' if dc_acc == 1 else 'OFF?'} (0=Off, 1=On)? ")
-        with open(dc_cfg_path, 'r') as file:
-            lines = file.readlines()
+        if dc_choice in ["0", "1"]:
+            with open(dc_cfg_path, 'r') as file:
+                dc_cfg_content = json.load(file)
 
-        if dc_choice == "0":
-            lines = [line.replace('true', 'false') if 'enableHardwareAcceleration":' in line else line for line in lines]
-            print("Turned Discord's hardware acceleration OFF.")
-        elif dc_choice == "1":
-            lines = [line.replace('false', 'true') if 'enableHardwareAcceleration":' in line else line for line in lines]
-            print("Turned Discord's hardware acceleration ON.")
+            dc_cfg_content['enableHardwareAcceleration'] = (dc_choice == "1")
+
+            with open(dc_cfg_path, 'w') as file:
+                json.dump(dc_cfg_content, file, indent=4)
+
+            print(f"Turned Discord's hardware acceleration {'OFF' if dc_choice == '0' else 'ON'}.")
         else:
-            print('Invalid choice')
-            exit()
-        with open(dc_cfg_path, 'r+') as file:
-            file.writelines(lines)
-            file.close()
+            print('Invalid choice for Discord. Please enter 0 for off or 1 for on.')
+
+
+#GX
+    
+    if is_gx_installed():
+        gx_cfg_path = os.path.join(gx_user_data_dir, 'Local State')
+    if os.path.exists(gx_cfg_path):
+        with open(gx_cfg_path, 'r') as gx_cfg_file:
+            lines = gx_cfg_file.readlines()
+        gx_choice = input(f"Keep OperaGX's Acceleration {'ON?' if gx_acc == 1 else 'OFF?'} (0=Off, 1=On)? ")
+        if gx_choice in ['0', '1']:
+            with open(gx_cfg_path, 'w') as gx_cfg_file:
+                for line in lines:
+                    if 'hardware_acceleration_mode":{"enabled":' in line:
+                        if gx_choice == '1':
+                            line = line.replace('"hardware_acceleration_mode":{"enabled":false}', '"hardware_acceleration_mode":{"enabled":true}')
+                        else:
+                            line = line.replace('"hardware_acceleration_mode":{"enabled":true}', '"hardware_acceleration_mode":{"enabled":false}')
+                    gx_cfg_file.write(line)
+            print("Hardware acceleration is now", "ON" if gx_choice == '1' else "OFF")
+        else:
+            print('Invalid choice for OperaGX. Please enter 0 for off or 1 for on.')
+    else:
+        print("Local State file not found.")
+
+
 
     print("Thank you and take care ,@frequencycs")
     time.sleep(2)
     webbrowser.open('https://twitter.com/frequencycs')
     webbrowser.open('https://fpsheaven.com/services')
-
 if __name__ == '__main__':
     main()
+#v1.3
